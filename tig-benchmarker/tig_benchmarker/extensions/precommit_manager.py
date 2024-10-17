@@ -33,6 +33,10 @@ class PrecommitManager:
         self.algorithm_name_2_id = {}
         self.challenge_name_2_id = {}
         self.curr_base_fees = {}
+        
+    def set_config(self, config: PrecommitManagerConfig, player_id: str):
+        self.config = config
+        self.player_id = player_id
 
     def on_new_block(
         self,

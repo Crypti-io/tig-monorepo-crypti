@@ -65,6 +65,9 @@ class JobManager:
             with open(file_path) as f:
                 job = Job.from_dict(json.load(f))
                 self.jobs.append(job)
+                
+    def set_config(self, config: JobManagerConfig):
+        self.config = config
 
     def on_new_block(
         self,

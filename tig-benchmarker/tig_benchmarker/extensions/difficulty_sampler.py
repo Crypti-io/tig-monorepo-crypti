@@ -124,6 +124,9 @@ class DifficultySampler:
         self.config = config
         self.valid_difficulties = {}
         self.frontiers = {}
+        
+    def set_config(self, config: DifficultySamplerConfig):
+        self.config = config
 
     def on_new_block(self, challenges: Dict[str, Challenge], **kwargs):
         for c in challenges.values():

@@ -37,6 +37,11 @@ class SubmissionsManager:
         self.api_url = api_url
         self.api_key = api_key
         
+    def set_config(self, config: SubmissionsManagerConfig, api_url: str, api_key: str):
+        self.config = config
+        self.api_url = api_url
+        self.api_key = api_key
+        
     async def _post(self, submission_type: str, req: Union[SubmitPrecommitRequest, SubmitBenchmarkRequest, SubmitProofRequest]):
         headers = {
             "X-Api-Key": self.api_key,

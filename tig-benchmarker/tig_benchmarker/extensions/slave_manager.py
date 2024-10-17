@@ -14,6 +14,40 @@ from typing import Dict, List, Optional, Set
 
 logger = logging.getLogger(os.path.splitext(os.path.basename(__file__))[0])
 
+# List of required keys in the configuration
+REQUIRED_KEYS = {
+    "player_id": str,
+    "api_key": str,
+    "api_url": str,
+    "difficulty_sampler_config": dict,
+    "job_manager_config": dict,
+    "submissions_manager_config": dict,
+    "precommit_manager_config": dict,
+    "slave_manager_config": dict
+}
+
+# Validate & Store Config.
+def validate_config(config: dict):
+    """Validates if the required keys are present in the configuration."""
+    missing_keys = []
+    for key, expected_type in REQUIRED_KEYS.items():
+        if key not in config:
+            missing_keys.append(key)
+        elif not isinstance(config[key], expected_type):
+            missing_keys.append(f"{key} (invalid type)")
+    
+    return missing_keys
+
+def save_config(config: dict):
+    config_path = "../../sample-config.json"
+    missing_keys = validate_config(config)
+    if missing_keys:
+        return {"success": False, "error": f"Missing or invalid keys: {missing_keys}"}
+    with open(config_path,"w") as file:
+        json.dump(config, file, indent=4)
+    return {"success: True"}
+    
+
 @dataclass
 class Batch(FromDict):
     benchmark_id: str
@@ -47,6 +81,9 @@ class SlaveManager:
     def __init__(self, config: SlaveManagerConfig, jobs: List[Job]):
         self.config = config
         self.jobs = jobs
+        
+    def set_config(self, config: SlaveManagerConfig):
+        self.config = config
 
     def start(self):
         app = Quart(__name__)
@@ -130,6 +167,21 @@ class SlaveManager:
                 for x in result.merkle_proofs
             })
             return "OK"
+        
+        @app.route('/update-config', methods=['POST'])
+        async def save():
+            """API endpoint to receive config via API call and store locally."""
+            try:
+                config_data = await request.get_json()
+                if not config_data:
+                    return jsonify({"error": "No config data provided"}), 400
+                response = save_config(config_data)
+                if not response.success:
+                    return jsonify({"error": f"{response.error}"}), 400
+                return jsonify({"message": "Config saved successfully"}), 200
+            except Exception as e:
+                logger.error(f"Error Saving config: {e}")
+                return jsonify({"error": f"{str(e)}"}), 500
 
         config = Config()
         config.bind = [f"0.0.0.0:{self.config.port}"]

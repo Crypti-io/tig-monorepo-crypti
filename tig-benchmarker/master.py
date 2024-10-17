@@ -23,27 +23,53 @@ class Config(FromDict):
     precommit_manager_config: PrecommitManagerConfig
     slave_manager_config: SlaveManagerConfig
     submissions_manager_config: SubmissionsManagerConfig
+    
+def fetch_config():
+    """Load the config file."""
+    config_path = "./sample-config.json"
+    if not os.path.exists(config_path):
+        raise FileNotFoundError(f"Config file {config_path} not found")
+    try:
+        with open(config_path,'r') as file:
+            config_data = json.load(file)
+    except json.JSONDecodeError as e:
+        raise ValueError(f"Failed to parse JSON from {config_path}: {str(e)}")
+    return config_data
 
-async def main(config: Config):
+async def main():
     last_block_id = None
     jobs = []
+    config = fetch_config()
 
-    data_fetcher = DataFetcher(config.api_url, config.player_id)
-    difficulty_sampler = DifficultySampler(config.difficulty_sampler_config)
-    job_manager = JobManager(config.job_manager_config, jobs)
-    precommit_manager = PrecommitManager(config.precommit_manager_config, config.player_id, jobs)
-    submissions_manager = SubmissionsManager(config.submissions_manager_config, config.api_url, config.api_key, jobs)
-    slave_manager = SlaveManager(config.slave_manager_config, jobs)
+    data_fetcher = DataFetcher(config['api_url'], config['player_id'])
+    difficulty_sampler = DifficultySampler(config['difficulty_sampler_config'])
+    job_manager = JobManager(config['job_manager_config'], jobs)
+    precommit_manager = PrecommitManager(config['precommit_manager_config'], config['player_id'], jobs)
+    submissions_manager = SubmissionsManager(config['submissions_manager_config'], config['api_url'], config['api_key'], jobs)
+    slave_manager = SlaveManager(config['slave_manager_config'], jobs)
     slave_manager.start()
 
     while True:
         try:
             data = await data_fetcher.run()
             if data["block"].id != last_block_id:
+                # 1. Fetch Config from server
+                config = fetch_config()
+                
+                # 2. Update Config.
+                data_fetcher.set_config(config['api_url'], config['player_id'])
+                difficulty_sampler.set_config(config['difficulty_sampler_config'])
+                job_manager.set_config(config['job_manager_config'])
+                precommit_manager.set_config(config['precommit_manager_config'], config['player_id'])
+                submissions_manager.set_config(config['submissions_manager_config'], config['api_url'], config['api_key'])
+                slave_manager.set_config(config['slave_manager_config'])
+                
+                # 3. Run new block data.
                 last_block_id = data["block"].id
                 difficulty_sampler.on_new_block(**data)
                 job_manager.on_new_block(**data)
                 precommit_manager.on_new_block(**data)
+            
             job_manager.run()
             samples = difficulty_sampler.run()
             submit_precommit_req = precommit_manager.run(samples)
@@ -67,10 +93,10 @@ if __name__ == "__main__":
         level=logging.DEBUG if args.verbose else logging.INFO
     )
 
-    if not os.path.exists(args.config_path):
-        logger.error(f"config file not found at path: {args.config_path}")
-        sys.exit(1)
-    with open(args.config_path, "r") as f:
-        config = json.load(f)
-        config = Config.from_dict(config)
-    asyncio.run(main(config))
+    # if not os.path.exists(args.config_path):
+    #     logger.error(f"config file not found at path: {args.config_path}")
+    #     sys.exit(1)
+    # with open(args.config_path, "r") as f:
+    #     config = json.load(f)
+    #     config = Config.from_dict(config)
+    asyncio.run(main())

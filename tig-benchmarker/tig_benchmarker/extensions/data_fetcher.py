@@ -30,6 +30,10 @@ class DataFetcher:
         self.player_id = player_id
         self.last_fetch = 0
         self._cache = None
+        
+    def set_config(self, api_url: str, player_id: str):
+        self.api_url = api_url
+        self.player_id = player_id
 
     async def run(self) -> dict:
         logger.debug("fetching latest block")
